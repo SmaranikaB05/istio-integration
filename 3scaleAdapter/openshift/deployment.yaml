@@ -25,7 +25,9 @@ spec:
         deploymentconfig: 3scale-istio-adapter
     spec:
       containers:
-      - image: quay.io/3scale/3scaleistioadapter:0.1-httpPlugin
+
+      # JA Bride: store image in GPTE repo 
+      - image: docker.io/rhtgptetraining/3scaleistioadapter:0.1-httPlugin
         imagePullPolicy: Always
         name: 3scale-istio-adapter
         ports:
@@ -36,7 +38,9 @@ spec:
           value: "true"
         resources: {}
         terminationMessagePath: /dev/termination-log
-      - image: quay.io/3scale/apicast:3scale-http-plugin
+
+      # JA Bride: store image in GPTE repo 
+      - image: docker.io/rhtgptetraining/apicast:3scale-http-plugin
         imagePullPolicy: Always
         name: 3scale-istio-httpclient
         ports:
