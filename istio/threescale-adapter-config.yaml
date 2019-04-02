@@ -1,0 +1,48 @@
+# handler for adapter threescale
+apiVersion: "config.istio.io/v1alpha2"
+kind: handler
+metadata:
+  name: threescale
+  namespace: istio-system
+spec:
+  adapter: threescale
+  params:
+    service_id: "123456"
+    system_url: "http://127.0.0.1:8090"
+    access_token: "secret-token"
+  connection:
+    address: "threescale-istio-adapter:3333"
+---
+
+# instance for template authorization
+apiVersion: "config.istio.io/v1alpha2"
+kind: instance
+metadata:
+  name: threescale-authorization
+  namespace: istio-system
+spec:
+  template: threescale-authorization
+  params:
+    subject:
+      user: request.query_params["user_key"] | request.headers["x-user-key"] | request.api_key | ""
+      properties:
+        app_id: request.query_params["app_id"] | request.headers["x-app-id"] | ""
+        app_key: request.query_params["app_key"] | request.headers["x-app-key"] | ""
+    action:
+      path: request.url_path
+      method: request.method | "get"
+---
+
+# rule to dispatch to handler threescalehandler
+apiVersion: "config.istio.io/v1alpha2"
+kind: rule
+metadata:
+  name: threescale
+  namespace: istio-system
+spec:
+  match: destination.labels["service-mesh.3scale.net"] == "true"
+  actions:
+    - handler: threescale.handler.istio-system
+      instances:
+        - threescale-authorization
+---

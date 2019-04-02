@@ -8,38 +8,13 @@ jobs:
       - image: circleci/golang:1.11
         environment:
           ISTIO: /go/src/istio.io/
-          ADAPTER_CODE: /go/src/github.com/3scale/istio-integration/3scaleAdapter
+          ADAPTER_CODE: /go/src/github.com/3scale/3scale-istio-adapter
 
-    working_directory: /go/src/github.com/3scale/istio-integration/
+    working_directory: /go/src/github.com/3scale/3scale-istio-adapter/
     steps:
       - checkout
 
-      - restore_cache:
-          keys:
-            - mixer-binaries
-
       - run: echo 'export PATH=/go/out/linux_amd64/release/:$PATH' >> $BASH_ENV
-
-      - run:
-          name: Download Istio
-          command: |
-            mkdir -p $ISTIO
-            git clone https://github.com/istio/istio $ISTIO/istio
-
-      - run:
-          name: Compile Mixer server and client
-          command: |
-            if command -v mixs && command -v mixc; then
-              echo "mixc and mixs already available"
-            else
-              cd ${ISTIO}/istio
-              make mixs && make mixc
-            fi
-
-      - save_cache:
-          key: mixer-binaries
-          paths:
-            - "/go/out/linux_amd64/release/"
 
       - restore_cache:
           keys:
@@ -54,38 +29,24 @@ jobs:
       - save_cache:
           key: deps-vendor
           paths:
-            - "/go/src/github.com/3scale/istio-integration/3scaleAdapter/vendor"
+            - "/go/src/github.com/3scale/3scale-istio-adapter/vendor"
 
-      - run: 
-          name: Golang tests
+      - run:
+          name: Run unit tests
           command: |
             cd ${ADAPTER_CODE}
-            make test
-      
+            make unit
+
       - run:
-          name: Start 3scale Istio Adapter
+          name: Run integration tests
           command: |
             cd ${ADAPTER_CODE}
-            THREESCALE_LISTEN_ADDR=3333 go run cmd/main.go
-          background: true
+            make integration
 
       - run:
-          name: Wait
+          name: Merge coverage profiles and pipe to Codecov
           command: |
-            sleep 5
-
-      - run:
-          name: Start Mixer Server
-          command: |
-            mixs server --configStoreURL=fs:///go/src/github.com/3scale/istio-integration/3scaleAdapter/testdata
-          background: true
-
-      - run:
-          name: Wait
-          command: |
-            sleep 15
-
-      - run:
-          name: Run Integration test scripts
-          command: |
-            bash ${ADAPTER_CODE}/scripts/integration_tests.sh
+            cd ${ADAPTER_CODE}
+            go get github.com/wadey/gocovmerge
+            gocovmerge _output/integration.cov _output/unit.cov > coverage.txt
+            bash <(curl -s https://codecov.io/bash)
